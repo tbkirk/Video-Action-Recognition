@@ -1,0 +1,44 @@
+
+.canvas_parent{
+    max-width: 100%; 
+    max-height: 90vh; 
+    object-fit: scale-down; 
+    position: absolute; 
+    left: 0; 
+    top: 0;
+}
+
+.frame_canvas{
+    z-index: 0;
+}
+
+.mask_canvas{
+    z-index: 1;
+    opacity: 50%;
+}
+
+.sidebar {
+  width: 100%;
+  max-width: 300px;
+  height: 100%;
+  border-right: 1px dotted #bababa;
+  position: fixed;
+  right: 0;
+  background-color: whitesmoke;
+  
+  .navbar-list {
+    color: #4f99be;
+    list-style: none;
+    margin: 0;
+    padding: 24px;
+    
+    li {
+      padding: 8px 0;
+      margin: 0;
+    }
+  }
+}
+
+#video_upload {
+    background-color: azure;
+}

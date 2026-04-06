@@ -1,0 +1,7 @@
+fastapi[standard]
+torch  --index-url https://download.pytorch.org/whl/cpu
+torchvision --index-url https://download.pytorch.org/whl/cpu
+transformers
+av
+python-multipart
+timm

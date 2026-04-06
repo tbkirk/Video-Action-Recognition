@@ -1,0 +1,27 @@
+<head>
+    <link rel="stylesheet" href="/static/crop.css">
+</head>
+<body>
+    <form id="video_upload" action="/crop/load_video" method="post" enctype='multipart/form-data' style="display: inline;">
+        <div>Select video:</div>
+        <input name="video_file" type="file">
+        <input type="submit" value="Load Video">
+        
+    </form>
+    <div style="display: inline;">
+        <button onclick="processObjects()">Process objects</button>
+        <button onclick="resetObjects()">Reset</button>
+        <button onclick="track()">Track</button>        
+    </div>
+    <div style="position: relative;">
+        <canvas id = "frame_canvas" width="2000", height="2000", onclick="clickCanvas(event)", class="canvas_parent frame_canvas"></canvas>
+        <canvas id = "mask_canvas" width="2000", height="2000", onclick="clickCanvas(event)", class="canvas_parent mask_canvas"></canvas>
+    </div>
+    <aside class="sidebar">
+            <ul id="object_list" class="navbar-list">
+            </ul>
+    </aside>
+</body>
+<footer>
+    <script src="crop.js"></script>
+</footer>
