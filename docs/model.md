@@ -29,20 +29,25 @@ We found the features extracted by DINOv2 from videos of mice contain pose infor
 
 ![](/docs/images/UMAP1.png)
 Illustration of feature extraction and visualisation
+
 ![](/docs/images/UMAP2.png)
 Extracted image features contain information about global image properties, such as lighting, but also about animal pose
+
 ![](/docs/images/UMAP3.png)
 Without training, DINOv2 features separate different animal behaviours
+
 ![](/docs/images/UMAP4.png)
 
 ## Evaluation of the model
 This model was evaluated on the MIT mouse dataset and SCRATCH-AID dataset.
 ### Model size
 An essential feature for this model is realtime inference when run on a typical university provided laptop, and therefore reducing model size in important. While the size of DINOv2 is fixed, the number of transformer layers in the classifier can be changed. After evaluation, we found 2 layers was sufficient for acceptable accuracy.
+![](/docs/images/model%20size.png)
 ### Inference speed
 TODO: evaluate inference speed on a range of hardware
 ### Dataset size
 As labelled datasets are time-consumining to create, this model needs to work well with small datasets to be as useful as possible to researchers. We evaluated the model on a range of training dataset sizes and found a training set of several hundred labelled examples was needed.
+![](/docs/images/training%20size.png)
 ### Training speed
 TODO: evaluate training speed on a range of hardware
 ### Robustness to different mouse strains, appearance, background
