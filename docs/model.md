@@ -23,7 +23,17 @@ Traditional mouse activity recognition systems (e.g. B-SOID) use a two-stage sys
 
 To address these issues, a fully end-to-end deep learning model was developed, using DINOv2 as a general image feature extractor and a transformer classifier to predict actions from the sequence of image features. The image feature extractor maintains visual information that would be discarded by pose estimation models. Error propagation is reduced by joint training of the two stages and training the classifier on the full set of image features. A pretrained image feature extractor can be applied to a diverse range of targets and can be finetuned on unlabelled datasets, making this suitable for different scenarios, such as live cell imaging. 
 
-We found the features extracted by DINOv2 from videos of mice contain pose information without explicitly training for this task, and DINOv2 features were sufficient to distinguish a range of activities in an unsupervised manner. Supervised training of a transformer classifier on labelled data acheived acceptable accuracy
+![A diagram of the model architecture](/docs/images/Model%201.png)
+
+We found the features extracted by DINOv2 from videos of mice contain pose information without explicitly training for this task, and DINOv2 features were sufficient to distinguish a range of activities in an unsupervised manner by PCA and UMAP. Supervised training of a transformer classifier on labelled data acheived acceptable accuracy.
+
+![](/docs/images/UMAP1.png)
+Illustration of feature extraction and visualisation
+![](/docs/images/UMAP2.png)
+Extracted image features contain information about global image properties, such as lighting, but also about animal pose
+![](/docs/images/UMAP3.png)
+Without training, DINOv2 features separate different animal behaviours
+![](/docs/images/UMAP4.png)
 
 ## Evaluation of the model
 This model was evaluated on the MIT mouse dataset and SCRATCH-AID dataset.
