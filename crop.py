@@ -60,6 +60,20 @@ def move_ownership(old_file: UploadFile) -> UploadFile:
     old_file.file = BinaryIO()
     return new_file
 
+def get_offset(position: int, size: int, limit: int) -> int:
+    offset = 0
+    if position - size < 0:
+        offset = 0 - (position - size)
+    elif position + size >= limit:
+        offset = limit - (position + size) # might be off by one?
+    return offset
+
+def get_boundaries(x: int, y: int, size: int, x_limit: int, y_limit: int):
+    x = x + get_offset(x, size, x_limit)
+    y = y + get_offset(y, size, y_limit)
+    return [x-size, x+size, y-size, y+size]
+
+
 class CropSession:
 
     video_file = None
@@ -191,7 +205,8 @@ class CropSession:
             y = object_coords[i][1]
             print(x,y)
             print(frame.shape)
-            cropped_frames.append(frame[y-size:y+size, x-size:x+size])
+            boundaries = get_boundaries(x, y, size, frame.size[1], frame.size[0])
+            cropped_frames.append(frame[boundaries[2]:boundaries[3], boundaries[0]:boundaries[1]])
             print(cropped_frames[-1].shape)
         cropped_frames = np.array(cropped_frames,dtype=np.uint8)
         print(cropped_frames.shape)
