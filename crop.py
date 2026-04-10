@@ -187,7 +187,7 @@ class CropSession:
             self.coords = coords
         else:
             self.coords = np.concatenate([self.coords,coords], axis = 1) # add new coordinates on the time axis
-        self.load_frames(2)
+        self.load_frames(10)
         for frame in np.array(self.video_frames):
             image = processor(images=frame, device=device, return_tensors='pt')
             self.inference_session.add_new_frame(image.pixel_values[0])
@@ -198,6 +198,7 @@ class CropSession:
         self.video_frames = []
         self.load_frames(n_frames)
         object_coords = self.coords[0] # just handle the first click so far
+        # TODO interpolate object coordinates between downsampled frames
         frames = np.array(self.video_frames)
         cropped_frames = []
         for i, frame in enumerate(frames):
@@ -211,10 +212,12 @@ class CropSession:
         cropped_frames = np.array(cropped_frames,dtype=np.uint8)
         print(cropped_frames.shape)
         write_container = av.open('test.mp4', mode='w')
-        stream = write_container.add_stream('mpeg4', rate=24, options={'b:v': '192000', 'maxrate': '192000'})
+        #stream = write_container.add_stream('mpeg4', rate=24, options={'crf': '0'})
+        stream = write_container.add_stream('mpeg4', rate=24)
         stream.width = size*2
         stream.height = size*2
         stream.pix_fmt = 'yuv420p'
+        stream.bit_rate = 1000000 # TODO work out how to vary this by required bitrate
         for img in cropped_frames:
             frame = av.VideoFrame.from_ndarray(img, format='rgb24')
             for packet in stream.encode(frame):
