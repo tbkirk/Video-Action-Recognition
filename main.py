@@ -60,6 +60,6 @@ async def track_objects():
     crop_session.track()
     return crop_session.coords.tolist()
 
-@app.get('/crop/crop')
-async def crop_video():
-    crop_session.crop(50, 50)
+@app.get('/crop/crop/{n_frames}/{size}')
+async def crop_video(n_frames: int, size: int):
+    crop_session.crop(n_frames, size)

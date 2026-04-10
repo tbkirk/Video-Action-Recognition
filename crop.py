@@ -205,7 +205,7 @@ class CropSession:
             y = object_coords[i][1]
             print(x,y)
             print(frame.shape)
-            boundaries = get_boundaries(x, y, size, frame.size[1], frame.size[0])
+            boundaries = get_boundaries(x, y, size, frame.shape[1], frame.shape[0])
             cropped_frames.append(frame[boundaries[2]:boundaries[3], boundaries[0]:boundaries[1]])
             print(cropped_frames[-1].shape)
         cropped_frames = np.array(cropped_frames,dtype=np.uint8)
