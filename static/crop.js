@@ -88,7 +88,7 @@ async function processObjects() {
 }
 
 async function track() {
-    for (let index = 0; index < 5; index++) {
+    for (let index = 0; index < 1; index++) { // todo remove loop
         const response = await fetch("/crop/track")
         const coords = await response.json() // an array with dimensions objects * time * xy coordinates
         console.log(coords)

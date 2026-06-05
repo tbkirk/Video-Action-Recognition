@@ -39,15 +39,21 @@ def median_index(a):
     index = inflection.argmax(axis = 2)
     return index
 
-
-
 def centre_of_mass(a):
     # calculates the central point of an array of masks
     x = a.sum(axis=2) # shape time * objects * x
     y = a.sum(axis=3) # shape time * objects * y
     return median_index(x), median_index(y)
 
-
+def interpolate_coords(coords, downsample, total_frames):
+    # linearly interpolate coordinates to match target length
+    x = coords[:, 0]
+    y = coords[:, 1]
+    index = np.arange(0, len(x)*downsample, downsample)
+    resampled_index = np.arange(0, total_frames)
+    x_interp = np.interp(resampled_index, index, x)
+    y_interp = np.interp(resampled_index, index, y)
+    return np.stack((x_interp, y_interp), axis=1)
 
 def move_ownership(old_file: UploadFile) -> UploadFile:
     # ugly workaround to keep the UploadFile around
@@ -78,18 +84,18 @@ class CropSession:
 
     video_file = None
     frame_iter = None
-    time_downscale_factor = 5
+    time_downscale_factor = None
     container = None
     first_frame = None
     video_frames = None
     inference_session = None
     frame_index = 0
     coords = None
+    total_frames = None
 
     def reset(self):
         self.video_file = None
         self.frame_iter = None
-        self.time_downscale_factor = 1
         self.container = None
         self.first_frame = None
         self.video_frames = None
@@ -97,13 +103,16 @@ class CropSession:
         self.frame_index = 0
         self.coords = None
     def __init__(self):
+        self.time_downscale_factor = 10
         pass
 
-    def load_frames(self, frame_count):
+    def load_frames(self, frame_count, downsample=None):
+        if downsample is None:
+            downsample = self.time_downscale_factor
         self.video_frames = []
-        for i in range(frame_count * self.time_downscale_factor):
+        for i in range(frame_count * downsample):
             frame = self.frame_iter.__next__()
-            if i % self.time_downscale_factor == 0:
+            if i % downsample == 0:
                 self.video_frames.append(frame.to_image())
 
     def save_frame(self, index: int):
@@ -118,6 +127,7 @@ class CropSession:
         self.video_file = move_ownership(video_file)
         self.container = av.open(self.video_file.file)
         self.frame_iter = self.container.decode(video=0)
+        self.total_frames = self.container.streams.video[0].frames
         self.masks = []
         # load first x frames
         self.load_frames(1)
@@ -130,6 +140,7 @@ class CropSession:
             video=np.array(self.video_frames),
             inference_device=device,
             dtype=torch.bfloat16,
+            max_vision_features_cache_size=10,
         )
     
     def generate_masks(self, points):
@@ -168,8 +179,20 @@ class CropSession:
         self.masks = [img_byte_arr]
         
     def track(self):
+        # todo use server send events to send masks as they are generated rather than waiting until the end
         self.save_frame(-1)
+        print('loading frames for tracking')
+        print("total frames in video: ", self.total_frames)
+        print("total frames to process: ", (self.total_frames // self.time_downscale_factor))
+        print(self.time_downscale_factor)
+        self.load_frames((self.total_frames // self.time_downscale_factor) - 1) # might be off by one?
+        print('frames loaded, starting tracking')
+        for frame in np.array(self.video_frames):
+            image = processor(images=frame, device=device, return_tensors='pt')
+            self.inference_session.add_new_frame(image.pixel_values[0])
+        print('finished processing frames')
         masks = []
+        # todo break into shorter videos to improve performance and reduce memory usage
         for sam2_video_output in model.propagate_in_video_iterator(self.inference_session, start_frame_idx=self.frame_index):
             print("starting frame: ", sam2_video_output.frame_idx)
             video_res_masks = processor.post_process_masks(
@@ -187,18 +210,21 @@ class CropSession:
             self.coords = coords
         else:
             self.coords = np.concatenate([self.coords,coords], axis = 1) # add new coordinates on the time axis
-        self.load_frames(10)
-        for frame in np.array(self.video_frames):
-            image = processor(images=frame, device=device, return_tensors='pt')
-            self.inference_session.add_new_frame(image.pixel_values[0])
+
         
     def crop(self, n_frames: int, size: int):
         self.container.seek(0)
+        n_frames = self.total_frames # todo handle different lengths
+        print("total frames: ", n_frames)
         self.frame_iter = self.container.decode(video=0)
         self.video_frames = []
-        self.load_frames(n_frames)
+        self.load_frames(self.total_frames, downsample=1) # load all frames
         object_coords = self.coords[0] # just handle the first click so far
         # TODO interpolate object coordinates between downsampled frames
+        print("coords shape: ", object_coords.shape)
+        object_coords = interpolate_coords(object_coords, self.time_downscale_factor, self.total_frames)
+        print("interpolated coords shape: ", object_coords.shape)
+        object_coords = object_coords.astype(int)
         frames = np.array(self.video_frames)
         cropped_frames = []
         for i, frame in enumerate(frames):
@@ -211,7 +237,7 @@ class CropSession:
             print(cropped_frames[-1].shape)
         cropped_frames = np.array(cropped_frames,dtype=np.uint8)
         print(cropped_frames.shape)
-        write_container = av.open('test.mp4', mode='w')
+        write_container = av.open('C:\\Users\\hmz574\\Downloads\\test.mp4', mode='w') 
         #stream = write_container.add_stream('mpeg4', rate=24, options={'crf': '0'})
         stream = write_container.add_stream('mpeg4', rate=24)
         stream.width = size*2
