@@ -114,6 +114,7 @@ class CropSession:
             frame = self.frame_iter.__next__()
             if i % downsample == 0:
                 self.video_frames.append(frame.to_image())
+                print("loaded frame ", i)
 
     def save_frame(self, index: int):
         img_byte_arr = io.BytesIO()
@@ -140,7 +141,7 @@ class CropSession:
             video=np.array(self.video_frames),
             inference_device=device,
             dtype=torch.bfloat16,
-            max_vision_features_cache_size=10,
+            #max_vision_features_cache_size=10,
         )
     
     def generate_masks(self, points):
@@ -187,7 +188,9 @@ class CropSession:
         print(self.time_downscale_factor)
         self.load_frames((self.total_frames // self.time_downscale_factor) - 1) # might be off by one?
         print('frames loaded, starting tracking')
-        for frame in np.array(self.video_frames):
+        for i, frame in enumerate(np.array(self.video_frames)):
+            if i % 10 == 0:
+                print("processing frame ", i)
             image = processor(images=frame, device=device, return_tensors='pt')
             self.inference_session.add_new_frame(image.pixel_values[0])
         print('finished processing frames')
@@ -219,39 +222,40 @@ class CropSession:
         self.frame_iter = self.container.decode(video=0)
         self.video_frames = []
         self.load_frames(self.total_frames, downsample=1) # load all frames
-        object_coords = self.coords[0] # just handle the first click so far
-        # TODO interpolate object coordinates between downsampled frames
+        object_coords = []
+        for coords in self.coords:
+            object_coords.append(interpolate_coords(coords, self.time_downscale_factor, self.total_frames))
+        object_coords = np.array(object_coords)
         print("coords shape: ", object_coords.shape)
-        object_coords = interpolate_coords(object_coords, self.time_downscale_factor, self.total_frames)
-        print("interpolated coords shape: ", object_coords.shape)
         object_coords = object_coords.astype(int)
         frames = np.array(self.video_frames)
-        cropped_frames = []
+        cropped_frames = [[] for x in range(object_coords.shape[0])] # list of lists to hold cropped frames for each object
         for i, frame in enumerate(frames):
-            x = object_coords[i][0]
-            y = object_coords[i][1]
-            print(x,y)
-            print(frame.shape)
-            boundaries = get_boundaries(x, y, size, frame.shape[1], frame.shape[0])
-            cropped_frames.append(frame[boundaries[2]:boundaries[3], boundaries[0]:boundaries[1]])
-            print(cropped_frames[-1].shape)
+            for j, coord in enumerate(object_coords):
+                x = coord[i][0]
+                y = coord[i][1]
+                print(x,y)
+                print(frame.shape)
+                boundaries = get_boundaries(x, y, size, frame.shape[1], frame.shape[0])
+                cropped_frames[j].append(frame[boundaries[2]:boundaries[3], boundaries[0]:boundaries[1]])
+                print(cropped_frames[j][-1].shape)
         cropped_frames = np.array(cropped_frames,dtype=np.uint8)
         print(cropped_frames.shape)
-        write_container = av.open('C:\\Users\\hmz574\\Downloads\\test.mp4', mode='w') 
-        #stream = write_container.add_stream('mpeg4', rate=24, options={'crf': '0'})
-        stream = write_container.add_stream('mpeg4', rate=24)
-        stream.width = size*2
-        stream.height = size*2
-        stream.pix_fmt = 'yuv420p'
-        stream.bit_rate = 1000000 # TODO work out how to vary this by required bitrate
-        for img in cropped_frames:
-            frame = av.VideoFrame.from_ndarray(img, format='rgb24')
-            for packet in stream.encode(frame):
+        for i in range(cropped_frames.shape[0]):
+            write_container = av.open('C:\\Users\\hmz574\\Downloads\\'+str(i)+'.mp4', mode='w')
+            stream = write_container.add_stream('mpeg4', rate=24)
+            stream.width = size*2
+            stream.height = size*2
+            stream.pix_fmt = 'yuv420p'
+            stream.bit_rate = 1000000 # TODO work out how to vary this by required bitrate
+            for img in cropped_frames[i]:
+                frame = av.VideoFrame.from_ndarray(img, format='rgb24')
+                for packet in stream.encode(frame):
+                    write_container.mux(packet)
+            # Flush stream
+            for packet in stream.encode():
                 write_container.mux(packet)
-        # Flush stream
-        for packet in stream.encode():
-            write_container.mux(packet)
 
-        # Close the file
-        write_container.close()
+            # Close the file
+            write_container.close()
 
