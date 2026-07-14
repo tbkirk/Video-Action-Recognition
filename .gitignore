@@ -216,3 +216,5 @@ models/
 *.npy
 *.pt
 *.zip
+*.csv
+*.boris
