@@ -11,6 +11,7 @@ import time
 import copy
 from fastapi import UploadFile
 from typing import BinaryIO
+import models
 
 
 
@@ -80,6 +81,7 @@ def get_boundaries(x: int, y: int, size: int, x_limit: int, y_limit: int):
     return [x-size, x+size, y-size, y+size]
 
 
+
 class CropSession:
 
     video_file = None
@@ -102,7 +104,9 @@ class CropSession:
         self.inference_session = None
         self.frame_index = 0
         self.coords = None
-    def __init__(self):
+    def __init__(self, model = 'videomt'):
+        if model == 'videomt':
+            self.model = models.VidEoMTModel()
         self.time_downscale_factor = 10
         pass
 
@@ -158,6 +162,8 @@ class CropSession:
             input_labels=labels,
         )
         # Segment the object on the first frame
+        ###
+        """ sam model code to move to models
         outputs = model(
             inference_session=self.inference_session,
             frame_idx=ann_frame_idx,
@@ -166,12 +172,21 @@ class CropSession:
             [outputs.pred_masks], original_sizes=[[self.inference_session.video_height, self.inference_session.video_width]], binarize=True
         )[0]
         masks = masks.cpu()
+        print("masks shape: ", masks.shape)
+        ###
+        
+        print(np.array(self.video_frames).shape) # (1, 480, 852, 3)
+        
+        print("masks shape: ", masks.shape)
         final_mask = np.zeros_like(masks[0,0], dtype=np.int32)
         for i in range(masks.shape[0]):
             layer = masks[i][0].numpy()
             final_mask += layer * (i+1)
+        """
+        masks = self.model.generate_masks(np.array(self.video_frames))
+        final_mask = masks[0]+1
         img = PIL.Image.fromarray(final_mask.astype(np.uint8), mode='P')
-        palette = make_palette(masks.shape[0])
+        palette = make_palette(final_mask.max())
         img.putpalette(palette)
         img = img.convert('RGB')
         img_byte_arr = io.BytesIO()
